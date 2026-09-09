@@ -17,9 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
     $middleware->web();
 
-    $middleware->appendToGroup('api', [
-        \Illuminate\Session\Middleware\StartSession::class,
-    ]);
 
     $middleware->redirectGuestsTo(function (Request $request) {
         if ($request->is('api/*')) {

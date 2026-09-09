@@ -24,6 +24,8 @@ class ProjectController extends Controller
         'name' => ['required', 'string', 'max:255'],
         'description' => ['nullable', 'string'],
         'status' => ['required', 'in:Actif,En pause,Archivé'],
+        'members' => ['nullable', 'integer', 'min:1'],
+        'image' => ['nullable', 'string'],
     ]);
 
     $project = $request->user()

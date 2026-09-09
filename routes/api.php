@@ -9,6 +9,13 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware(['web', 'auth:sanctum']);
 
+Route::get('/debug-session', function (Request $request) {
+    return response()->json([
+        'session_id' => $request->session()->getId(),
+        'user_id' => $request->user()?->id,
+        'authenticated' => auth()->check(),
+    ]);
+});
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('web');
 Route::get('/projects', [ProjectController::class, 'index'])
