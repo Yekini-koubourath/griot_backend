@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('plan_id')->constrained()->cascadeOnDelete();
             $table->timestamp('date_debut')->nullable();
             $table->timestamp('date_fin')->nullable();
-            $table->enum('statut', ['actif', 'en_attente', 'expiree'])->default('en_attente');
+            $table->enum('statut', ['actif', 'en_attente', 'expiree'])->default('actif');
             $table->enum('mode_paiement', ['carte', 'mobile_money', 'virement'])->nullable();
             $table->string('reference_paiement')->nullable();
             $table->decimal('montant', 10, 2)->default(0);

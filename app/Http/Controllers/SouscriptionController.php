@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
-use App\Models\Souscription;
 use Illuminate\Http\Request;
 
 class SouscriptionController extends Controller
@@ -23,18 +22,18 @@ class SouscriptionController extends Controller
     {
         $validated = $request->validate([
             'plan_id' => ['required', 'exists:plans,id'],
-            'quantite' => ['nullable', 'integer', 'min:1'],
+            'duree_unite' => ['required', 'in:jour,mois,annee'],
+            'quantite' => ['required', 'integer', 'min:1'],
             'devise' => ['required', 'in:EUR,USD,XOF'],
             'mode_paiement' => ['required_unless:plan_est_gratuit,true', 'nullable', 'in:carte,mobile_money,virement'],
             'reference_paiement' => ['nullable', 'string', 'max:255'],
+            'details_paiement' => ['nullable', 'array'],
+            'details_paiement.*' => ['nullable', 'string', 'max:255'],
         ]);
 
         $plan = Plan::findOrFail($validated['plan_id']);
-        $quantite = $validated['quantite'] ?? 1;
-
-        $rates = config('currencies.rates', ['EUR' => 1]);
-        $rate = $rates[$validated['devise']] ?? 1;
-        $montant = round($plan->prix * $rate * $quantite, 2);
+        $quantite = $validated['quantite'];
+        $dureeUnite = $validated['duree_unite'];
 
         $estGratuit = $plan->isGratuit();
 
@@ -45,11 +44,16 @@ class SouscriptionController extends Controller
             ], 422);
         }
 
+        $rates = config('currencies.rates', ['EUR' => 1]);
+        $rate = $rates[$validated['devise']] ?? 1;
+        $prixUnitaire = $plan->prixPourUnite($dureeUnite);
+        $montant = $estGratuit ? 0 : round($prixUnitaire * $rate * $quantite, 2);
+
         $dateDebut = now();
-        $dateFin = match ($plan->duree_unite) {
-            'jour' => $dateDebut->copy()->addDays($plan->duree * $quantite),
-            'annee' => $dateDebut->copy()->addYears($plan->duree * $quantite),
-            default => $dateDebut->copy()->addMonths($plan->duree * $quantite),
+        $dateFin = match ($dureeUnite) {
+            'jour' => $dateDebut->copy()->addDays($quantite),
+            'annee' => $dateDebut->copy()->addYears($quantite),
+            default => $dateDebut->copy()->addMonths($quantite),
         };
 
         $souscription = $request->user()->souscriptions()->create([
@@ -62,17 +66,16 @@ class SouscriptionController extends Controller
             'montant' => $montant,
             'devise' => $validated['devise'],
             'quantite' => $quantite,
-            'details_paiement' => [
+            'details_paiement' => array_merge($validated['details_paiement'] ?? [], [
                 'plan_nom' => $plan->nom,
-                'prix_unitaire' => $plan->prix,
-                'devise_reference' => $plan->devise,
-            ],
+                'duree_unite' => $dureeUnite,
+            ]),
         ]);
 
         return response()->json([
             'message' => $estGratuit
                 ? 'Abonnement activé avec succès.'
-                : 'Souscription enregistrée, en attente de validation du paiement.',
+                : 'Souscription enregistrée. Votre accès sera activé après validation du paiement.',
             'souscription' => $souscription->load('plan'),
         ], 201);
     }

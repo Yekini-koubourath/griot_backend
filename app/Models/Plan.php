@@ -31,4 +31,26 @@ class Plan extends Model
     {
         return (float) $this->prix === 0.0;
     }
+
+    // À ajouter dans la classe Plan
+
+public function prixMensuelBase(): float
+{
+    return match ($this->duree_unite) {
+        'jour' => round($this->prix * 30 / max($this->duree, 1), 2),
+        'annee' => round($this->prix / (12 * max($this->duree, 1)), 2),
+        default => round($this->prix / max($this->duree, 1), 2),
+    };
+}
+
+public function prixPourUnite(string $unite): float
+{
+    $mensuel = $this->prixMensuelBase();
+
+    return match ($unite) {
+        'jour' => round($mensuel / 30, 2),
+        'annee' => round($mensuel * 10, 2), // 2 mois offerts sur l'annuel
+        default => round($mensuel, 2),
+    };
+}
 }
