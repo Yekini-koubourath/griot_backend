@@ -34,4 +34,20 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    // app/Models/User.php — à ajouter dans la classe
+public function souscriptions()
+{
+    return $this->hasMany(\App\Models\Souscription::class);
+}
+
+public function souscriptionActive()
+{
+    return $this->souscriptions()
+        ->where('statut', 'actif')
+        ->where(function ($q) {
+            $q->whereNull('date_fin')->orWhere('date_fin', '>', now());
+        })
+        ->latest()
+        ->first();
+}
 }

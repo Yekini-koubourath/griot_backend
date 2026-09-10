@@ -25,11 +25,15 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = \App\Models\User::create([
+             $user = \App\Models\User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
+
+        Auth::login($user);
+
+        $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Inscription réussie',
@@ -186,4 +190,5 @@ public function handleGoogleCallback(Request $request)
     // Retourner vers le frontend
     return redirect('http://localhost:3000/dashboard');
 }
+
 }

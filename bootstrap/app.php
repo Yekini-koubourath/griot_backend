@@ -12,14 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-   ->withMiddleware(function (Middleware $middleware): void {
+ ->withMiddleware(function (Middleware $middleware): void {
     $middleware->statefulApi();
+
+    $middleware->alias([
+        'subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
+    ]);
 
     $middleware->redirectGuestsTo(function (Request $request) {
         if ($request->is('api/*')) {
             return null;
         }
-
         return route('login');
     });
 })
@@ -29,3 +32,5 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->create();
+    
+ 

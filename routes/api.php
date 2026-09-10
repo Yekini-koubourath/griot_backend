@@ -4,6 +4,8 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PlanController;
+use App\Http\Controllers\SouscriptionController;
 
 // Récupérer l'utilisateur connecté
 Route::get('/user', function (Request $request) {
@@ -24,7 +26,13 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
 // Routes protégées
-Route::get('/projects', [ProjectController::class, 'index'])
-    ->middleware('auth:sanctum');
-Route::post('/projects', [ProjectController::class, 'store'])
-    ->middleware('auth:sanctum');
+Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/projects', [ProjectController::class, 'store']);
+});
+    Route::get('/plans', [PlanController::class, 'index']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/souscriptions/current', [SouscriptionController::class, 'current']);
+    Route::post('/souscriptions', [SouscriptionController::class, 'store']);
+});

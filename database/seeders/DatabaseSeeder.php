@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
+    $this->call(PlanSeeder::class);
     public function run(): void
     {
         // User::factory(10)->create();
