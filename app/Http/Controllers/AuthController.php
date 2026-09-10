@@ -188,7 +188,7 @@ public function handleGoogleCallback(Request $request)
     $request->session()->regenerate();
 
     // Retourner vers le frontend
-    return redirect('http://localhost:3000/dashboard');
+    return redirect('http://localhost:3000/auth/abonnement');
 }
 
 }
