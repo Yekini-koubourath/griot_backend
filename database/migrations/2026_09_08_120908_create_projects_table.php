@@ -22,8 +22,9 @@ return new class extends Migration
     $table->text('description')->nullable();
 
     $table->string('status')->default('Actif');
+    $table->unsignedInteger('members')->default(1);
 
-    $table->string('image')->nullable();
+   $table->string('image')->nullable();
 
     $table->timestamps();
 });
