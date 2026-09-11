@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CompteSocialController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PlanController;
@@ -69,4 +70,13 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::put('/users/{user}', [AdminUserController::class, 'update']);
+});
+
+
+Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/projects', [ProjectController::class, 'store']);
+
+    Route::get('/projects/{project}/comptes-sociaux', [CompteSocialController::class, 'index']);
+    Route::delete('/projects/{project}/comptes-sociaux/{compte}', [CompteSocialController::class, 'destroy']);
 });

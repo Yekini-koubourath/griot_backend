@@ -23,4 +23,9 @@ class Project extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function comptesSociaux(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(CompteSocial::class);
+}
 }
