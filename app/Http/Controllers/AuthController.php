@@ -182,13 +182,31 @@ public function handleGoogleCallback(Request $request)
         }
     }
 
-    // Connecter l'utilisateur
+      // Connecter l'utilisateur
     Auth::login($user);
 
     $request->session()->regenerate();
 
-    // Retourner vers le frontend
-    return redirect('http://localhost:3000/auth/abonnement');
+    // Déterminer la redirection selon le rôle et le statut d'abonnement
+    $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+
+    if ($user->isAdmin()) {
+        return redirect($frontendUrl . '/dashboard');
+    }
+
+    $souscription = $user->souscriptionActive();
+
+    if ($souscription) {
+        return redirect($frontendUrl . '/dashboard');
+    }
+
+    $derniereSouscription = $user->souscriptions()->latest()->first();
+
+    if ($derniereSouscription && $derniereSouscription->statut === 'en_attente') {
+        return redirect($frontendUrl . '/auth/attente');
+    }
+
+    return redirect($frontendUrl . '/auth/abonnement');
 }
 
 }

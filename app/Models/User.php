@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -12,21 +11,39 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
     public function projects(): HasMany
-{
-    return $this->hasMany(Project::class);
-}
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function souscriptions(): HasMany
+    {
+        return $this->hasMany(Souscription::class);
+    }
+
+    public function souscriptionActive()
+    {
+        return $this->souscriptions()
+            ->where('statut', 'actif')
+            ->where(function ($q) {
+                $q->whereNull('date_fin')->orWhere('date_fin', '>', now());
+            })
+            ->latest()
+            ->first();
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
     protected function casts(): array
     {
         return [
@@ -34,20 +51,4 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    // app/Models/User.php — à ajouter dans la classe
-public function souscriptions()
-{
-    return $this->hasMany(\App\Models\Souscription::class);
-}
-
-public function souscriptionActive()
-{
-    return $this->souscriptions()
-        ->where('statut', 'actif')
-        ->where(function ($q) {
-            $q->whereNull('date_fin')->orWhere('date_fin', '>', now());
-        })
-        ->latest()
-        ->first();
-}
 }

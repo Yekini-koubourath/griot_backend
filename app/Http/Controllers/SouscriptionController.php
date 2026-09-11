@@ -25,7 +25,7 @@ class SouscriptionController extends Controller
             'duree_unite' => ['required', 'in:jour,mois,annee'],
             'quantite' => ['required', 'integer', 'min:1'],
             'devise' => ['required', 'in:EUR,USD,XOF'],
-            'mode_paiement' => ['required_unless:plan_est_gratuit,true', 'nullable', 'in:carte,mobile_money,virement'],
+            'mode_paiement' => ['nullable', 'in:carte,mobile_money,virement'],
             'reference_paiement' => ['nullable', 'string', 'max:255'],
             'details_paiement' => ['nullable', 'array'],
             'details_paiement.*' => ['nullable', 'string', 'max:255'],

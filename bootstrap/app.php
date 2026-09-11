@@ -12,25 +12,24 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
- ->withMiddleware(function (Middleware $middleware): void {
-    $middleware->statefulApi();
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->statefulApi();
 
-    $middleware->alias([
-        'subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
-    ]);
+        $middleware->alias([
+            'subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
+            'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
+        ]);
 
-    $middleware->redirectGuestsTo(function (Request $request) {
-        if ($request->is('api/*')) {
-            return null;
-        }
-        return route('login');
-    });
-})
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('api/*')) {
+                return null;
+            }
+            return route('login');
+        });
+    })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })
     ->create();
-    
- 
