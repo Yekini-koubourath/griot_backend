@@ -11,7 +11,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\SouscriptionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\PublicationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
         '/souscriptions',
         [SouscriptionController::class, 'store']
     );
+
+    Route::apiResource('publications', PublicationController::class);
 });
 
 

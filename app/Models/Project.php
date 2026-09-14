@@ -28,4 +28,9 @@ class Project extends Model
 {
     return $this->hasMany(CompteSocial::class);
 }
+
+public function publications()
+{
+    return $this->hasMany(Publication::class);
+}
 }
