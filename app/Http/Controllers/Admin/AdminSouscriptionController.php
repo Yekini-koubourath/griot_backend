@@ -15,7 +15,7 @@ class AdminSouscriptionController extends Controller
     {
         $query = Souscription::with([
             'user:id,name,email',
-            'plan:id,nom',
+            'plan:id,nom,duree,duree_unite',
         ]);
 
         if ($request->filled('statut')) {
@@ -23,23 +23,42 @@ class AdminSouscriptionController extends Controller
         }
 
         return response()->json([
-            'souscriptions' => $query->latest()->paginate(20),
+            'souscriptions' => $query
+                ->latest()
+                ->paginate(20),
         ]);
     }
 
     /**
-     * Valider une souscription.
+     * Valider une souscription en attente.
+     *
+     * Règle importante :
+     *
+     * Si l'utilisateur n'a aucune période active/future :
+     *     nouvelle période = maintenant → durée du plan
+     *
+     * Si l'utilisateur possède déjà une période active/future :
+     *     nouvelle période = lendemain de la dernière date de fin
+     *
+     * Exemple :
+     *
+     * abonnement actuel :
+     * 01/09 → 30/09
+     *
+     * renouvellement payé le :
+     * 20/09
+     *
+     * nouveau renouvellement :
+     * 01/10 → 30/10
      */
     public function valider(Souscription $souscription)
     {
-        // Une souscription déjà active ne doit pas être validée une deuxième fois.
-        if ($souscription->statut === 'actif') {
+        if ($souscription->statut !== 'en_attente') {
             return response()->json([
-                'message' => 'Cette souscription est déjà active.',
+                'message' => 'Seules les souscriptions en attente peuvent être validées.',
             ], 422);
         }
 
-        // Charger le plan associé.
         $souscription->load('plan');
 
         if (!$souscription->plan) {
@@ -48,53 +67,138 @@ class AdminSouscriptionController extends Controller
             ], 422);
         }
 
-        $dateDebut = now();
+        $plan = $souscription->plan;
 
-        // Calcul de la date de fin selon la durée du plan.
-        $dateFin = match ($souscription->plan->duree_unite) {
-            'jour' => $dateDebut->copy()->addDays(
-                $souscription->plan->duree
-            ),
+        /*
+        |--------------------------------------------------------------------------
+        | Recherche de la dernière période active ou déjà programmée
+        |--------------------------------------------------------------------------
+        |
+        | On regarde les souscriptions :
+        |
+        | - actif
+        | - renouvelee
+        |
+        | dont la date de fin n'est pas encore dépassée.
+        |
+        | On prend celle qui finit le plus tard.
+        |
+        | Cela permet également d'empiler plusieurs renouvellements.
+        |
+        */
 
-            'annee' => $dateDebut->copy()->addYears(
-                $souscription->plan->duree
-            ),
+        $derniereSouscription = Souscription::where('user_id', $souscription->user_id)
+            ->whereIn('statut', ['actif', 'renouvelee'])
+            ->whereNotNull('date_fin')
+            ->where('date_fin', '>=', now())
+            ->orderByDesc('date_fin')
+            ->first();
 
-            default => $dateDebut->copy()->addMonths(
-                $souscription->plan->duree
-            ),
+        /*
+        |--------------------------------------------------------------------------
+        | Détermination de la date de début
+        |--------------------------------------------------------------------------
+        */
+
+        if ($derniereSouscription) {
+            /*
+             * L'utilisateur possède déjà une période.
+             *
+             * Le nouveau renouvellement commence
+             * le lendemain de la fin de cette période.
+             */
+            $dateDebut = $derniereSouscription->date_fin
+                ->copy()
+                ->addDay()
+                ->startOfDay();
+
+            $statut = 'renouvelee';
+        } else {
+            /*
+             * Aucun abonnement actif ou futur.
+             *
+             * La nouvelle souscription commence aujourd'hui.
+             */
+            $dateDebut = now()->startOfDay();
+
+            $statut = 'actif';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calcul de la date de fin
+        |--------------------------------------------------------------------------
+        |
+        | Les périodes sont inclusives.
+        |
+        | Exemple :
+        |
+        | 01 septembre → 30 septembre
+        |
+        | et non :
+        |
+        | 01 septembre → 01 octobre
+        |
+        */
+
+        $dateFin = match ($plan->duree_unite) {
+            'jour' => $dateDebut
+                ->copy()
+                ->addDays(max((int) $plan->duree, 1) - 1)
+                ->endOfDay(),
+
+            'annee' => $dateDebut
+                ->copy()
+                ->addYearsNoOverflow(max((int) $plan->duree, 1))
+                ->subDay()
+                ->endOfDay(),
+
+            default => $dateDebut
+                ->copy()
+                ->addMonthsNoOverflow(max((int) $plan->duree, 1))
+                ->subDay()
+                ->endOfDay(),
         };
 
+        /*
+        |--------------------------------------------------------------------------
+        | Validation de la souscription
+        |--------------------------------------------------------------------------
+        */
+
         $souscription->update([
-            'statut' => 'actif',
+            'statut' => $statut,
             'date_debut' => $dateDebut,
             'date_fin' => $dateFin,
+            'date_validation' => now(),
         ]);
 
         return response()->json([
-            'message' => 'Souscription validée, accès activé.',
-            'souscription' => $souscription->fresh()->load([
-                'user:id,name,email',
-                'plan:id,nom',
-            ]),
+            'message' => $statut === 'renouvelee'
+                ? 'Renouvellement validé. La nouvelle période commencera après la période actuelle.'
+                : 'Souscription validée, accès activé.',
+
+            'souscription' => $souscription
+                ->fresh()
+                ->load([
+                    'user:id,name,email',
+                    'plan:id,nom,duree,duree_unite',
+                ]),
         ]);
     }
 
     /**
-     * Rejeter une souscription.
+     * Rejeter une souscription en attente.
      */
-    public function rejeter(
-        Request $request,
-        Souscription $souscription
-    ) {
+    public function rejeter(Request $request, Souscription $souscription)
+    {
         $validated = $request->validate([
             'motif' => ['nullable', 'string', 'max:255'],
         ]);
 
-        // Une souscription déjà active ne doit pas être rejetée.
-        if ($souscription->statut === 'actif') {
+        if ($souscription->statut !== 'en_attente') {
             return response()->json([
-                'message' => 'Une souscription active ne peut pas être rejetée.',
+                'message' => 'Seules les souscriptions en attente peuvent être rejetées.',
             ], 422);
         }
 
@@ -110,10 +214,13 @@ class AdminSouscriptionController extends Controller
 
         return response()->json([
             'message' => 'Souscription rejetée.',
-            'souscription' => $souscription->fresh()->load([
-                'user:id,name,email',
-                'plan:id,nom',
-            ]),
+
+            'souscription' => $souscription
+                ->fresh()
+                ->load([
+                    'user:id,name,email',
+                    'plan:id,nom,duree,duree_unite',
+                ]),
         ]);
     }
 }
