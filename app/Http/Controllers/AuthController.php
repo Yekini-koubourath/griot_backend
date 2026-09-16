@@ -48,26 +48,37 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+   public function login(Request $request)
+{
+    $credentials = $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
 
-        if (!Auth::attempt($credentials)) {
-            return response()->json([
-                'message' => 'Email ou mot de passe incorrect'
-            ], 401);
-        }
+    if (!Auth::attempt($credentials)) {
+        return response()->json([
+            'message' => 'Email ou mot de passe incorrect'
+        ], 401);
+    }
 
-        $request->session()->regenerate();
+    $user = $request->user();
+
+    if (!$user->hasVerifiedEmail()) {
+        Auth::logout();
 
         return response()->json([
-            'message' => 'Connexion réussie',
-            'user' => $request->user(),
-        ]);
+            'message' => 'Veuillez vérifier votre adresse email avant de vous connecter.',
+            'email_verification_required' => true,
+        ], 403);
     }
+
+    $request->session()->regenerate();
+
+    return response()->json([
+        'message' => 'Connexion réussie',
+        'user' => $user,
+    ]);
+}
 
     public function redirectToGoogle()
     {

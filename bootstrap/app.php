@@ -20,12 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
         ]);
 
-        $middleware->redirectGuestsTo(function (Request $request) {
-            if ($request->is('api/*')) {
-                return null;
-            }
-            return route('login');
-        });
+     $middleware->redirectGuestsTo(function (Request $request) {
+    if ($request->is('api/*')) {
+        return null;
+    }
+
+   return config('app.frontend_url', 'http://localhost:3000') . '/auth/login';
+});
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
