@@ -12,6 +12,8 @@ use App\Http\Controllers\SouscriptionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PublicationController;
+use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MediaFolderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -70,6 +72,26 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     Route::apiResource('publications', PublicationController::class);
+
+      Route::get(
+    '/medias',
+    [MediaController::class, 'index']
+    );
+
+    Route::post(
+        '/medias',
+        [MediaController::class, 'store']
+    );
+
+    Route::get(
+        '/media-folders',
+        [MediaFolderController::class, 'index']
+    );
+
+    Route::post(
+        '/media-folders',
+        [MediaFolderController::class, 'store']
+    );
 });
 
 
@@ -243,4 +265,5 @@ Route::middleware(['auth:sanctum', 'admin'])
             '/users/{user}',
             [AdminUserController::class, 'destroy']
         );
+        
     });
