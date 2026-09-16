@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Publication extends Model
 {
@@ -23,7 +24,7 @@ class Publication extends Model
     ];
 
     /**
-     * Utilisateur propriétaire de la publication.
+     * Utilisateur propriétaire.
      */
     public function user(): BelongsTo
     {
@@ -31,10 +32,21 @@ class Publication extends Model
     }
 
     /**
-     * Projet auquel appartient la publication.
+     * Projet.
      */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * Médias utilisés dans la publication.
+     */
+    public function medias(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Media::class,
+            'media_publication'
+        )->withTimestamps();
     }
 }

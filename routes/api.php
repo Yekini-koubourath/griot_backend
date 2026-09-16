@@ -73,25 +73,35 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('publications', PublicationController::class);
 
-      Route::get(
+     Route::get(
     '/medias',
     [MediaController::class, 'index']
-    );
+);
 
-    Route::post(
-        '/medias',
-        [MediaController::class, 'store']
-    );
+Route::post(
+    '/medias',
+    [MediaController::class, 'store']
+);
 
-    Route::get(
-        '/media-folders',
-        [MediaFolderController::class, 'index']
-    );
+Route::get(
+    '/medias/{media}/download',
+    [MediaController::class, 'download']
+);
 
-    Route::post(
-        '/media-folders',
-        [MediaFolderController::class, 'store']
-    );
+Route::delete(
+    '/medias/{media}',
+    [MediaController::class, 'destroy']
+);
+
+Route::get(
+    '/media-folders',
+    [MediaFolderController::class, 'index']
+);
+
+Route::post(
+    '/media-folders',
+    [MediaFolderController::class, 'store']
+);
 });
 
 

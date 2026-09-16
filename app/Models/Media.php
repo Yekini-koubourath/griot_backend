@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Media extends Model
 {
@@ -27,11 +28,24 @@ class Media extends Model
     }
 
     /**
-     * Le média peut appartenir à un dossier.
+     * Le média appartient éventuellement à un dossier.
      */
-
     public function folder(): BelongsTo
-{
-    return $this->belongsTo(MediaFolder::class, 'folder_id');
-}
+    {
+        return $this->belongsTo(
+            MediaFolder::class,
+            'folder_id'
+        );
+    }
+
+    /**
+     * Publications utilisant ce média.
+     */
+    public function publications(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Publication::class,
+            'media_publication'
+        )->withTimestamps();
+    }
 }

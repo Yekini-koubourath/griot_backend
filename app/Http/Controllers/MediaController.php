@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Media;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class MediaController extends Controller
 {
@@ -16,13 +17,13 @@ class MediaController extends Controller
             'user_id',
             $request->user()->id
         )
-            ->with('folder')
+            ->with([
+                'folder',
+                'publications:id,title,network,status',
+            ])
             ->latest()
             ->get();
 
-        /*
-         * On recalcule le type à partir du vrai MIME.
-         */
         $medias->each(function ($media) {
             $mimeType = strtolower(
                 (string) $media->mime_type
@@ -47,14 +48,6 @@ class MediaController extends Controller
      */
     public function store(Request $request)
     {
-        /*
-         * On vérifie uniquement que c'est bien un fichier
-         * et qu'il ne dépasse pas 50 Mo.
-         *
-         * On ne bloque plus l'import avec "mimes",
-         * car certains navigateurs/environnements peuvent
-         * envoyer un MIME différent de l'extension réelle.
-         */
         $request->validate([
             'file' => [
                 'required',
@@ -91,16 +84,10 @@ class MediaController extends Controller
 
         $file = $request->file('file');
 
-        /*
-         * MIME réel du fichier.
-         */
         $mimeType = strtolower(
             (string) $file->getMimeType()
         );
 
-        /*
-         * Détection du type du média.
-         */
         if (str_starts_with($mimeType, 'image/')) {
             $type = 'image';
         } elseif (str_starts_with($mimeType, 'video/')) {
@@ -109,18 +96,11 @@ class MediaController extends Controller
             $type = 'document';
         }
 
-        /*
-         * Stockage :
-         * storage/app/public/medias
-         */
         $path = $file->store(
             'medias',
             'public'
         );
 
-        /*
-         * Création du média.
-         */
         $media = Media::create([
             'user_id' => $request->user()->id,
 
@@ -143,10 +123,10 @@ class MediaController extends Controller
             'path' => $path,
         ]);
 
-        /*
-         * Charger le dossier associé.
-         */
-        $media->load('folder');
+        $media->load([
+            'folder',
+            'publications',
+        ]);
 
         return response()->json([
             'message' =>
@@ -154,5 +134,83 @@ class MediaController extends Controller
 
             'media' => $media,
         ], 201);
+    }
+
+    /**
+     * Télécharger un média.
+     */
+    public function download(
+        Request $request,
+        Media $media
+    ) {
+        if (
+            $media->user_id !==
+            $request->user()->id
+        ) {
+            return response()->json([
+                'message' =>
+                    'Ce média ne vous appartient pas.',
+            ], 403);
+        }
+
+        if (
+            !Storage::disk('public')
+                ->exists($media->path)
+        ) {
+            return response()->json([
+                'message' =>
+                    'Le fichier demandé est introuvable.',
+            ], 404);
+        }
+
+        return Storage::disk('public')->download(
+            $media->path,
+            $media->original_name,
+            [
+                'Content-Type' =>
+                    $media->mime_type,
+            ]
+        );
+    }
+
+    /**
+     * Supprimer un média.
+     */
+    public function destroy(
+        Request $request,
+        Media $media
+    ) {
+        if (
+            $media->user_id !==
+            $request->user()->id
+        ) {
+            return response()->json([
+                'message' =>
+                    'Ce média ne vous appartient pas.',
+            ], 403);
+        }
+
+        /*
+         * Supprime le fichier physique.
+         */
+        if (
+            Storage::disk('public')
+                ->exists($media->path)
+        ) {
+            Storage::disk('public')
+                ->delete($media->path);
+        }
+
+        /*
+         * Les relations dans media_publication
+         * sont supprimées automatiquement grâce
+         * à cascadeOnDelete().
+         */
+        $media->delete();
+
+        return response()->json([
+            'message' =>
+                'Média supprimé avec succès.',
+        ]);
     }
 }
