@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Project extends Model
 {
@@ -24,13 +25,19 @@ class Project extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function comptesSociaux(): \Illuminate\Database\Eloquent\Relations\HasMany
-{
-    return $this->hasMany(CompteSocial::class);
-}
+    /**
+     * Comptes sociaux du projet.
+     */
+    public function comptesSociaux(): HasMany
+    {
+        return $this->hasMany(CompteSocial::class);
+    }
 
-public function publications()
-{
-    return $this->hasMany(Publication::class);
-}
+    /**
+     * Publications du projet.
+     */
+    public function publications(): HasMany
+    {
+        return $this->hasMany(Publication::class);
+    }
 }

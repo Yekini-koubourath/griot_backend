@@ -23,6 +23,10 @@ class Publication extends Model
         'image',
     ];
 
+    protected $casts = [
+        'date' => 'date:Y-m-d',
+    ];
+
     /**
      * Utilisateur propriétaire.
      */

@@ -54,7 +54,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function publications()
+  public function publications(): HasMany
 {
     return $this->hasMany(Publication::class);
 }
@@ -68,4 +68,5 @@ public function mediaFolders(): HasMany
 {
     return $this->hasMany(MediaFolder::class);
 }
+
 }

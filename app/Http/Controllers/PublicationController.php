@@ -10,19 +10,45 @@ class PublicationController extends Controller
     /**
      * Liste les publications de l'utilisateur connecté.
      */
-    public function index(Request $request)
-    {
-        $publications = $request->user()
-            ->publications()
-            ->with([
-                'project',
-                'medias',
-            ])
-            ->latest()
-            ->get();
+  /**
+ * Liste les publications de l'utilisateur connecté.
+ */
+public function index(Request $request)
+{
+    $query = $request->user()
+        ->publications()
+        ->with([
+            'project',
+            'medias',
+        ])
+        ->latest();
 
-        return response()->json($publications);
+    /*
+     * Si un projet est demandé,
+     * on vérifie qu'il appartient bien à l'utilisateur.
+     */
+    if ($request->filled('project_id')) {
+        $projectId = $request->integer('project_id');
+
+        $projectExists = $request
+            ->user()
+            ->projects()
+            ->where('id', $projectId)
+            ->exists();
+
+        if (!$projectExists) {
+            return response()->json([
+                'message' => 'Ce projet ne vous appartient pas.',
+            ], 403);
+        }
+
+        $query->where('project_id', $projectId);
     }
+
+    $publications = $query->get();
+
+    return response()->json($publications);
+}
 
     /**
      * Crée une ou plusieurs publications.
