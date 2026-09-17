@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PublicationController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MediaFolderController;
+use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\AnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,6 +104,8 @@ Route::post(
     '/media-folders',
     [MediaFolderController::class, 'store']
 );
+
+Route::get('/analytics', [AnalyticsController::class, 'index']);
 });
 
 
@@ -176,6 +180,20 @@ Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
         '/projects/{project}/comptes-sociaux/{compte}',
         [CompteSocialController::class, 'destroy']
     );
+
+
+        Route::middleware('auth')->group(function () {
+    Route::get('/campaigns', [CampaignController::class, 'index']);
+    Route::post('/campaigns', [CampaignController::class, 'store']);
+    Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
+    Route::put('/campaigns/{campaign}', [CampaignController::class, 'update']);
+    Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update']);
+    Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
+
+    Route::post('/campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate']);
+    Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
+    Route::post('/campaigns/{campaign}/resume', [CampaignController::class, 'resume']);
+});
 });
 
 
@@ -275,5 +293,8 @@ Route::middleware(['auth:sanctum', 'admin'])
             '/users/{user}',
             [AdminUserController::class, 'destroy']
         );
+
+
+    
         
     });

@@ -69,4 +69,8 @@ public function mediaFolders(): HasMany
     return $this->hasMany(MediaFolder::class);
 }
 
+public function campaigns()
+{
+    return $this->hasMany(Campaign::class);
+}
 }

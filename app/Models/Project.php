@@ -40,4 +40,9 @@ class Project extends Model
     {
         return $this->hasMany(Publication::class);
     }
+
+    public function campaigns()
+{
+    return $this->hasMany(Campaign::class);
+}
 }

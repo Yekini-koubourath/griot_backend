@@ -5,27 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Publication extends Model
+class Campaign extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'user_id',
         'project_id',
-        'campaign_id',
-        'title',
-        'content',
-        'network',
+        'name',
+        'description',
         'status',
-        'date',
-        'time',
-        'image',
+        'start_date',
+        'end_date',
     ];
 
     protected $casts = [
-        'date' => 'date:Y-m-d',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
     ];
 
     /**
@@ -37,7 +35,7 @@ class Publication extends Model
     }
 
     /**
-     * Projet.
+     * Projet associé.
      */
     public function project(): BelongsTo
     {
@@ -45,17 +43,10 @@ class Publication extends Model
     }
 
     /**
-     * Médias utilisés dans la publication.
+     * Publications de la campagne.
      */
-    public function medias(): BelongsToMany
+    public function publications(): HasMany
     {
-        return $this->belongsToMany(
-            Media::class,
-            'media_publication'
-        )->withTimestamps();
+        return $this->hasMany(Publication::class);
     }
-    public function campaign()
-{
-    return $this->belongsTo(Campaign::class);
-}
 }
