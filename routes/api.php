@@ -16,6 +16,7 @@ use App\Http\Controllers\MediaController;
 use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +107,21 @@ Route::post(
 );
 
 Route::get('/analytics', [AnalyticsController::class, 'index']);
+
+
+    // Settings
+    Route::get('/settings/profile', [SettingsController::class, 'profile']);
+    Route::put('/settings/profile', [SettingsController::class, 'updateProfile']);
+
+    Route::get('/settings/notifications', [SettingsController::class, 'notifications']);
+    Route::put('/settings/notifications', [SettingsController::class, 'updateNotifications']);
+
+    Route::get('/settings/preferences', [SettingsController::class, 'preferences']);
+    Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);
+
+    Route::put('/settings/password', [SettingsController::class, 'updatePassword']);
+
+    Route::post('/logout', [SettingsController::class, 'logout']);
 });
 
 

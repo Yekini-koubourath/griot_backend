@@ -12,7 +12,23 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable([
+    'name',
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'company',
+    'avatar',
+    'language',
+    'timezone',
+    'notification_publications',
+    'notification_reminders',
+    'notification_analytics',
+    'notification_marketing',
+    'password',
+    'role',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -46,31 +62,36 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role === 'admin';
     }
 
+    public function publications(): HasMany
+    {
+        return $this->hasMany(Publication::class);
+    }
+
+    public function medias(): HasMany
+    {
+        return $this->hasMany(Media::class);
+    }
+
+    public function mediaFolders(): HasMany
+    {
+        return $this->hasMany(MediaFolder::class);
+    }
+
+    public function campaigns()
+    {
+        return $this->hasMany(Campaign::class);
+    }
+
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+
+            'notification_publications' => 'boolean',
+            'notification_reminders' => 'boolean',
+            'notification_analytics' => 'boolean',
+            'notification_marketing' => 'boolean',
         ];
     }
-
-  public function publications(): HasMany
-{
-    return $this->hasMany(Publication::class);
-}
-
-public function medias(): HasMany
-{
-    return $this->hasMany(Media::class);
-}
-
-public function mediaFolders(): HasMany
-{
-    return $this->hasMany(MediaFolder::class);
-}
-
-public function campaigns()
-{
-    return $this->hasMany(Campaign::class);
-}
 }
