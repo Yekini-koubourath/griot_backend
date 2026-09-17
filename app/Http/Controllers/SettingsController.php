@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class SettingsController extends Controller
@@ -31,7 +32,8 @@ class SettingsController extends Controller
     }
 
     /**
-     * Modifier les informations du profil.
+     * Modifier les informations du profil
+     * et éventuellement la photo de profil.
      */
     public function updateProfile(Request $request)
     {
@@ -40,31 +42,148 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'first_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['nullable', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email,' . $user->id,
+            ],
             'phone' => ['nullable', 'string', 'max:30'],
             'company' => ['nullable', 'string', 'max:255'],
+
+            // Photo facultative
+            'avatar' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ],
         ]);
 
-        $user->first_name = $validated['first_name'] ?? null;
-        $user->last_name = $validated['last_name'] ?? null;
-        $user->email = $validated['email'];
-        $user->phone = $validated['phone'] ?? null;
-        $user->company = $validated['company'] ?? null;
+        /*
+        |--------------------------------------------------------------------------
+        | INFORMATIONS DU PROFIL
+        |--------------------------------------------------------------------------
+        */
 
-        // On conserve "name" pour rester compatible
-        // avec le reste de l'application.
+        $user->first_name =
+            $validated['first_name'] ?? null;
+
+        $user->last_name =
+            $validated['last_name'] ?? null;
+
+        $user->email =
+            $validated['email'];
+
+        $user->phone =
+            $validated['phone'] ?? null;
+
+        $user->company =
+            $validated['company'] ?? null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | NAME
+        |--------------------------------------------------------------------------
+        */
+
         $fullName = trim(
-            ($user->first_name ?? '') . ' ' . ($user->last_name ?? '')
+            ($user->first_name ?? '') .
+            ' ' .
+            ($user->last_name ?? '')
         );
 
         if ($fullName !== '') {
             $user->name = $fullName;
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | PHOTO DE PROFIL
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->hasFile('avatar')) {
+
+            /*
+            | Supprimer l'ancienne photo
+            */
+            if (
+                $user->avatar &&
+                str_starts_with(
+                    $user->avatar,
+                    '/storage/'
+                )
+            ) {
+                $oldPath = str_replace(
+                    '/storage/',
+                    '',
+                    $user->avatar
+                );
+
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+
+            /*
+            | Enregistrer la nouvelle photo
+            */
+            $path = $request
+                ->file('avatar')
+                ->store('avatars', 'public');
+
+            /*
+            | On sauvegarde uniquement le chemin public
+            */
+            $user->avatar =
+                '/storage/' . $path;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPPRESSION DE LA PHOTO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $request->has('remove_avatar') &&
+            $request->boolean('remove_avatar')
+        ) {
+
+            if (
+                $user->avatar &&
+                str_starts_with(
+                    $user->avatar,
+                    '/storage/'
+                )
+            ) {
+                $oldPath = str_replace(
+                    '/storage/',
+                    '',
+                    $user->avatar
+                );
+
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
+            }
+
+            $user->avatar = null;
+        }
+
         $user->save();
 
+        /*
+        |--------------------------------------------------------------------------
+        | RÉPONSE
+        |--------------------------------------------------------------------------
+        */
+
         return response()->json([
-            'message' => 'Profil mis à jour avec succès.',
+            'message' =>
+                'Profil mis à jour avec succès.',
+
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -88,10 +207,17 @@ class SettingsController extends Controller
 
         return response()->json([
             'notifications' => [
-                'publications' => (bool) $user->notification_publications,
-                'reminders' => (bool) $user->notification_reminders,
-                'analytics' => (bool) $user->notification_analytics,
-                'marketing' => (bool) $user->notification_marketing,
+                'publications' =>
+                    (bool) $user->notification_publications,
+
+                'reminders' =>
+                    (bool) $user->notification_reminders,
+
+                'analytics' =>
+                    (bool) $user->notification_analytics,
+
+                'marketing' =>
+                    (bool) $user->notification_marketing,
             ],
         ]);
     }
@@ -110,20 +236,36 @@ class SettingsController extends Controller
 
         $user = $request->user();
 
-        $user->notification_publications = $validated['publications'];
-        $user->notification_reminders = $validated['reminders'];
-        $user->notification_analytics = $validated['analytics'];
-        $user->notification_marketing = $validated['marketing'];
+        $user->notification_publications =
+            $validated['publications'];
+
+        $user->notification_reminders =
+            $validated['reminders'];
+
+        $user->notification_analytics =
+            $validated['analytics'];
+
+        $user->notification_marketing =
+            $validated['marketing'];
 
         $user->save();
 
         return response()->json([
-            'message' => 'Préférences de notifications mises à jour.',
+            'message' =>
+                'Préférences de notifications mises à jour.',
+
             'notifications' => [
-                'publications' => (bool) $user->notification_publications,
-                'reminders' => (bool) $user->notification_reminders,
-                'analytics' => (bool) $user->notification_analytics,
-                'marketing' => (bool) $user->notification_marketing,
+                'publications' =>
+                    (bool) $user->notification_publications,
+
+                'reminders' =>
+                    (bool) $user->notification_reminders,
+
+                'analytics' =>
+                    (bool) $user->notification_analytics,
+
+                'marketing' =>
+                    (bool) $user->notification_marketing,
             ],
         ]);
     }
@@ -149,19 +291,31 @@ class SettingsController extends Controller
     public function updatePreferences(Request $request)
     {
         $validated = $request->validate([
-            'language' => ['required', 'in:Français,English'],
-            'timezone' => ['required', 'in:GMT +0,GMT +1,GMT +2'],
+            'language' => [
+                'required',
+                'in:Français,English',
+            ],
+
+            'timezone' => [
+                'required',
+                'in:GMT +0,GMT +1,GMT +2',
+            ],
         ]);
 
         $user = $request->user();
 
-        $user->language = $validated['language'];
-        $user->timezone = $validated['timezone'];
+        $user->language =
+            $validated['language'];
+
+        $user->timezone =
+            $validated['timezone'];
 
         $user->save();
 
         return response()->json([
-            'message' => 'Préférences mises à jour avec succès.',
+            'message' =>
+                'Préférences mises à jour avec succès.',
+
             'preferences' => [
                 'language' => $user->language,
                 'timezone' => $user->timezone,
@@ -175,7 +329,11 @@ class SettingsController extends Controller
     public function updatePassword(Request $request)
     {
         $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
+            'current_password' => [
+                'required',
+                'current_password',
+            ],
+
             'password' => [
                 'required',
                 'confirmed',
@@ -185,11 +343,16 @@ class SettingsController extends Controller
 
         $user = $request->user();
 
-        $user->password = Hash::make($validated['password']);
+        $user->password =
+            Hash::make(
+                $validated['password']
+            );
+
         $user->save();
 
         return response()->json([
-            'message' => 'Mot de passe modifié avec succès.',
+            'message' =>
+                'Mot de passe modifié avec succès.',
         ]);
     }
 
@@ -198,10 +361,14 @@ class SettingsController extends Controller
      */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()?->delete();
+        $request
+            ->user()
+            ->currentAccessToken()
+            ?->delete();
 
         return response()->json([
-            'message' => 'Déconnexion réussie.',
+            'message' =>
+                'Déconnexion réussie.',
         ]);
     }
 }
