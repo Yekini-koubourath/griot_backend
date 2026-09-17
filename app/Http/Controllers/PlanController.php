@@ -7,27 +7,22 @@ use Illuminate\Http\Request;
 
 class PlanController extends Controller
 {
-   public function index(Request $request)
+public function index(Request $request)
 {
-    $dureeUnite = $request->query('duree_unite', 'mois');
-
-    if (!in_array($dureeUnite, ['jour', 'mois', 'annee'], true)) {
-        $dureeUnite = 'mois';
-    }
-
     $plans = Plan::where('statut', 'actif')
         ->orderBy('position')
         ->get()
-        ->map(function (Plan $plan) use ($dureeUnite) {
+        ->map(function (Plan $plan) {
             return [
                 'id' => $plan->id,
                 'nom' => $plan->nom,
                 'type' => $plan->type,
                 'description' => $plan->description,
-                'prix' => round($plan->prixPourUnite($dureeUnite), 2),
+                'prix' => (float) $plan->prix,
                 'devise' => $plan->devise,
-                'duree_unite' => $dureeUnite,
-                'trial' => $plan->trial,
+                'duree' => $plan->duree,
+                'duree_unite' => $plan->duree_unite,
+                'trial' => (bool) $plan->trial,
                 'trial_duration' => $plan->trial_duration,
                 'features' => $plan->features,
                 'est_gratuit' => $plan->isGratuit(),
