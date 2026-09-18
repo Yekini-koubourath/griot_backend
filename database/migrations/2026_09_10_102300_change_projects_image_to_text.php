@@ -10,10 +10,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Use raw statement only for MySQL / PostgreSQL. Skip for SQLite (test env).
         $driver = DB::getDriverName();
-        if (in_array($driver, ['mysql', 'pgsql'])) {
-            DB::statement('ALTER TABLE `projects` MODIFY `image` TEXT NULL');
+
+        if ($driver === 'pgsql') {
+            DB::statement(
+                'ALTER TABLE projects ALTER COLUMN image TYPE TEXT'
+            );
+
+            DB::statement(
+                'ALTER TABLE projects ALTER COLUMN image DROP NOT NULL'
+            );
+        } elseif ($driver === 'mysql') {
+            DB::statement(
+                'ALTER TABLE `projects` MODIFY `image` TEXT NULL'
+            );
         }
     }
 
@@ -23,8 +33,19 @@ return new class extends Migration
     public function down(): void
     {
         $driver = DB::getDriverName();
-        if (in_array($driver, ['mysql', 'pgsql'])) {
-            DB::statement('ALTER TABLE `projects` MODIFY `image` VARCHAR(255) NULL');
+
+        if ($driver === 'pgsql') {
+            DB::statement(
+                'ALTER TABLE projects ALTER COLUMN image TYPE VARCHAR(255)'
+            );
+
+            DB::statement(
+                'ALTER TABLE projects ALTER COLUMN image DROP NOT NULL'
+            );
+        } elseif ($driver === 'mysql') {
+            DB::statement(
+                'ALTER TABLE `projects` MODIFY `image` VARCHAR(255) NULL'
+            );
         }
     }
 };
