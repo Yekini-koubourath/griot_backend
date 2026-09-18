@@ -82,6 +82,14 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Campaign::class);
     }
 
+    /**
+     * Factures de l'utilisateur.
+     */
+    public function factures(): HasMany
+    {
+        return $this->hasMany(Facture::class);
+    }
+
     protected function casts(): array
     {
         return [

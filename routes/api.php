@@ -17,6 +17,7 @@ use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\FacturesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -123,7 +124,7 @@ Route::get('/analytics', [AnalyticsController::class, 'index']);
 
     Route::post('/logout', [SettingsController::class, 'logout']);
 });
-
+Route::get('/factures', [FacturesController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------
