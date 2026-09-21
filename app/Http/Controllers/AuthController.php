@@ -15,46 +15,60 @@ class AuthController extends Controller
     /**
      * Inscription classique
      */
-    public function register(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-        ]);
+  /**
+ * Inscription classique
+ */
+public function register(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:8',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        /*
-         * Envoyer le mail de vérification.
-         */
-        $user->sendEmailVerificationNotification();
-
-        /*
-         * Créer un token Sanctum.
-         *
-         * Ce token sera utilisé par le frontend
-         * pour les futures requêtes API.
-         */
-        $token = $user->createToken('griot-ai')->plainTextToken;
-
+    if ($validator->fails()) {
         return response()->json([
-            'message' => 'Inscription réussie. Un email de vérification vous a été envoyé.',
-            'token' => $token,
-            'user' => $user,
-            'email_verification_required' => true,
-        ], 201);
+            'errors' => $validator->errors()
+        ], 422);
     }
+
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+    ]);
+
+    /*
+     * Créer le token Sanctum.
+     *
+     * Le frontend utilisera ce token pour
+     * les futures requêtes API.
+     */
+    $token = $user->createToken('griot-ai')->plainTextToken;
+
+    /*
+     * On essaie d'envoyer le mail de vérification.
+     *
+     * Si le serveur SMTP est momentanément indisponible,
+     * l'inscription ne doit pas être annulée.
+     */
+    try {
+        $user->sendEmailVerificationNotification();
+    } catch (\Throwable $e) {
+        \Log::error('Erreur envoi email de vérification', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'error' => $e->getMessage(),
+        ]);
+    }
+
+    return response()->json([
+        'message' => 'Inscription réussie. Un email de vérification vous a été envoyé.',
+        'token' => $token,
+        'user' => $user,
+        'email_verification_required' => true,
+    ], 201);
+}
 
     /**
      * Connexion classique
