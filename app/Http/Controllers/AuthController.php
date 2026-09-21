@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Http;
 
 class AuthController extends Controller
 {
+    /**
+     * Inscription classique
+     */
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -37,49 +40,71 @@ class AuthController extends Controller
          */
         $user->sendEmailVerificationNotification();
 
-        Auth::login($user);
-
-        $request->session()->regenerate();
+        /*
+         * Créer un token Sanctum.
+         *
+         * Ce token sera utilisé par le frontend
+         * pour les futures requêtes API.
+         */
+        $token = $user->createToken('griot-ai')->plainTextToken;
 
         return response()->json([
             'message' => 'Inscription réussie. Un email de vérification vous a été envoyé.',
+            'token' => $token,
             'user' => $user,
             'email_verification_required' => true,
         ], 201);
     }
 
-   public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'email' => 'required|email',
-        'password' => 'required',
-    ]);
+    /**
+     * Connexion classique
+     */
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-    if (!Auth::attempt($credentials)) {
+        /*
+         * Chercher l'utilisateur.
+         */
+        $user = User::where('email', $credentials['email'])->first();
+
+        /*
+         * Vérifier le mot de passe.
+         */
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json([
+                'message' => 'Email ou mot de passe incorrect'
+            ], 401);
+        }
+
+        /*
+         * Vérifier que l'adresse email est confirmée.
+         */
+        if (!$user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Veuillez vérifier votre adresse email avant de vous connecter.',
+                'email_verification_required' => true,
+            ], 403);
+        }
+
+        /*
+         * Créer un token Sanctum.
+         */
+        $token = $user->createToken('griot-ai')->plainTextToken;
+
         return response()->json([
-            'message' => 'Email ou mot de passe incorrect'
-        ], 401);
+            'message' => 'Connexion réussie',
+            'token' => $token,
+            'user' => $user,
+        ]);
     }
 
-    $user = $request->user();
-
-    if (!$user->hasVerifiedEmail()) {
-        Auth::logout();
-
-        return response()->json([
-            'message' => 'Veuillez vérifier votre adresse email avant de vous connecter.',
-            'email_verification_required' => true,
-        ], 403);
-    }
-
-    $request->session()->regenerate();
-
-    return response()->json([
-        'message' => 'Connexion réussie',
-        'user' => $user,
-    ]);
-}
-
+    /**
+     * Redirection vers Google
+     */
     public function redirectToGoogle()
     {
         $state = Str::random(40);
@@ -101,6 +126,9 @@ class AuthController extends Controller
         );
     }
 
+    /**
+     * Callback Google
+     */
     public function handleGoogleCallback(Request $request)
     {
         // Vérifier le state OAuth
@@ -201,7 +229,7 @@ class AuthController extends Controller
             }
         }
 
-        // Connecter l'utilisateur
+        // Pour le moment, on garde cette partie Google inchangée.
         Auth::login($user);
 
         $request->session()->regenerate();

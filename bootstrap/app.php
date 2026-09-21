@@ -13,20 +13,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
 
         $middleware->alias([
             'subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
             'admin' => \App\Http\Middleware\EnsureIsAdmin::class,
         ]);
 
-     $middleware->redirectGuestsTo(function (Request $request) {
-    if ($request->is('api/*')) {
-        return null;
-    }
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('api/*')) {
+                return null;
+            }
 
-   return config('app.frontend_url', 'http://localhost:3000') . '/auth/login';
-});
+            return config('app.frontend_url', 'http://localhost:3000') . '/auth/login';
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
