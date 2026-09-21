@@ -1,30 +1,73 @@
-<?php
+FROM php:8.4-cli
 
-namespace Database\Seeders;
+# ============================================================
+# Dépendances système nécessaires à Laravel + PostgreSQL
+# ============================================================
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libpq-dev \
+    libzip-dev \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    && docker-php-ext-install \
+        pdo_pgsql \
+        pgsql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+    && rm -rf /var/lib/apt/lists/*
 
-use App\Models\User;
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
+# ============================================================
+# Installer Composer
+# ============================================================
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-class AdminSeeder extends Seeder
-{
-    public function run(): void
-    {
-        $admin = User::firstOrCreate(
-            ['email' => 'admin@griot.ai'],
-            [
-                'name' => 'admin',
-                'password' => Hash::make('Admin123'),
-                'role' => 'admin',
-                'email_verified_at' => now(),
-            ]
-        );
+# ============================================================
+# Dossier de travail Laravel
+# ============================================================
+WORKDIR /var/www/html
 
-        // Si l'admin existe déjà, on s'assure simplement
-        // qu'il possède bien les droits admin et que son email est vérifié.
-        $admin->forceFill([
-            'role' => 'admin',
-            'email_verified_at' => $admin->email_verified_at ?? now(),
-        ])->save();
-    }
-}
+# ============================================================
+# Copier le projet Laravel dans le conteneur
+# ============================================================
+COPY . .
+
+# ============================================================
+# Installer les dépendances PHP de production
+# ============================================================
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
+
+# ============================================================
+# Préparer les dossiers Laravel nécessaires
+# ============================================================
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache
+
+# ============================================================
+# Donner les permissions à Laravel
+# ============================================================
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+# ============================================================
+# Port utilisé par Render
+# ============================================================
+EXPOSE 10000
+
+# ============================================================
+# Démarrage du backend Laravel
+# ============================================================
+CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --class=AdminSeeder --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]

@@ -10,7 +10,7 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        User::updateOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => 'admin@griot.ai'],
             [
                 'name' => 'admin',
@@ -19,5 +19,12 @@ class AdminSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Si l'admin existe déjà, on s'assure simplement
+        // qu'il possède bien les droits admin et que son email est vérifié.
+        $admin->forceFill([
+            'role' => 'admin',
+            'email_verified_at' => $admin->email_verified_at ?? now(),
+        ])->save();
     }
 }
