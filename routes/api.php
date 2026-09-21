@@ -123,8 +123,9 @@ Route::get('/analytics', [AnalyticsController::class, 'index']);
     Route::put('/settings/password', [SettingsController::class, 'updatePassword']);
 
     Route::post('/logout', [SettingsController::class, 'logout']);
+    Route::get('/factures', [FacturesController::class, 'index']);
 });
-Route::get('/factures', [FacturesController::class, 'index']);
+
 
 /*
 |--------------------------------------------------------------------------
