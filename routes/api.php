@@ -37,7 +37,14 @@ Route::get('/debug-session', function (Request $request) {
     ]);
 })->middleware('auth:sanctum');
 
-
+Route::get('/debug-session-raw', function (Request $request) {
+    return response()->json([
+        'session_id' => $request->session()->getId(),
+        'session_has_login' => $request->session()->has('login_web_' . sha1('App\Models\User')),
+        'auth_check' => auth()->check(),
+        'user_id' => auth()->id(),
+    ]);
+});
 /*
 |--------------------------------------------------------------------------
 | Authentification publique
