@@ -14,6 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
 
+        $middleware->statefulApi();
+
         $middleware->alias([
             'subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
             'admin' => \App\Http\Middleware\EnsureIsAdmin::class,

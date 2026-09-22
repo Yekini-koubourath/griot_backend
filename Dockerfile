@@ -53,7 +53,13 @@ RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
+    storage/app/public \
     bootstrap/cache
+
+# ============================================================
+# Créer le lien public/storage
+# ============================================================
+RUN php artisan storage:link
 
 # ============================================================
 # Donner les permissions à Laravel
@@ -70,4 +76,4 @@ EXPOSE 10000
 # ============================================================
 # Démarrage du backend Laravel
 # ============================================================
-CMD ["sh", "-c", "php artisan migrate --force && php artisan db:seed --class=AdminSeeder --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]
+CMD ["sh", "-c", "php artisan storage:link || true && php artisan migrate --force && php artisan db:seed --class=AdminSeeder --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]

@@ -317,5 +317,8 @@ Route::middleware(['auth:sanctum', 'admin'])
             '/users/{user}',
             [AdminUserController::class, 'destroy']
         );
+
+
+    
         
     });
