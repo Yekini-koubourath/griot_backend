@@ -4,16 +4,60 @@ namespace App\Http\Controllers;
 
 use App\Models\CompteSocial;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class TikTokAuthController extends Controller
 {
+    /**
+     * IMPORTANT :
+     *
+     * Cette route est atteinte via une navigation plein-écran
+     * (window.location.href côté frontend), pas via un appel axios.
+     * Une navigation de ce type n'envoie JAMAIS de header
+     * "Authorization: Bearer ...", donc auth:sanctum ne peut pas
+     * authentifier l'utilisateur de cette façon.
+     *
+     * On accepte donc aussi le token en query string (?token=...)
+     * et on le résout manuellement via Sanctum. Le frontend doit
+     * ajouter ce paramètre à l'URL (voir reseaux_sociaux/page.tsx).
+     */
+    private function resolveAuthenticatedUser(Request $request): ?User
+    {
+        if ($request->user()) {
+            return $request->user();
+        }
+
+        $token = $request->query('token');
+
+        if (!$token) {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($token);
+
+        if (!$accessToken) {
+            return null;
+        }
+
+        return $accessToken->tokenable;
+    }
+
     public function redirect(Request $request, Project $project)
     {
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+
+        $user = $this->resolveAuthenticatedUser($request);
+
+        if (!$user) {
+            return redirect($frontendUrl . '/auth/login');
+        }
+
         // Vérifie que le projet appartient bien à l'utilisateur connecté
-        if ($project->user_id !== $request->user()->id) {
+        if ($project->user_id !== $user->id) {
             abort(403);
         }
 
@@ -120,7 +164,7 @@ class TikTokAuthController extends Controller
             !hash_equals($sessionState, $state)
         ) {
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?erreur=oauth_invalide'
+                $frontendUrl . '/dashboard/reseaux_sociaux?erreur=oauth_invalide'
             );
         }
 
@@ -132,7 +176,7 @@ class TikTokAuthController extends Controller
 
         if ($request->filled('error')) {
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?erreur=connexion_annulee'
+                $frontendUrl . '/dashboard/reseaux_sociaux?erreur=connexion_annulee'
             );
         }
 
@@ -146,7 +190,7 @@ class TikTokAuthController extends Controller
 
         if (!$code || !$projectId || !$codeVerifier) {
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?erreur=code_manquant'
+                $frontendUrl . '/dashboard/reseaux_sociaux?erreur=code_manquant'
             );
         }
 
@@ -160,7 +204,7 @@ class TikTokAuthController extends Controller
 
         if (!$project) {
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?erreur=projet_introuvable'
+                $frontendUrl . '/dashboard/reseaux_sociaux?erreur=projet_introuvable'
             );
         }
 
@@ -200,7 +244,7 @@ class TikTokAuthController extends Controller
             ]);
 
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?project='
+                $frontendUrl . '/dashboard/reseaux_sociaux?project='
                 . $project->id
                 . '&erreur=token_invalide'
             );
@@ -228,7 +272,7 @@ class TikTokAuthController extends Controller
             ]);
 
             return redirect(
-                $frontendUrl . '/dashboard/reseaux-sociaux?project='
+                $frontendUrl . '/dashboard/reseaux_sociaux?project='
                 . $project->id
                 . '&erreur=token_incomplet'
             );
@@ -302,7 +346,7 @@ class TikTokAuthController extends Controller
 
         return redirect(
             $frontendUrl
-            . '/dashboard/reseaux-sociaux?project='
+            . '/dashboard/reseaux_sociaux?project='
             . $project->id
             . '&connecte=tiktok'
         );

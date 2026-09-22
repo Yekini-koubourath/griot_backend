@@ -9,66 +9,163 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Password;
 
 class AuthController extends Controller
 {
     /**
      * Inscription classique
      */
-  /**
- * Inscription classique
- */
-public function register(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users',
-        'password' => 'required|string|min:8',
-    ]);
+    public function register(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8',
+        ]);
 
-    if ($validator->fails()) {
+        if ($validator->fails()) {
+            return response()->json([
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        /*
+         * Créer le token Sanctum.
+         *
+         * Le frontend utilisera ce token pour
+         * les futures requêtes API.
+         */
+        $token = $user->createToken('griot-ai')->plainTextToken;
+
+        /*
+         * IMPORTANT : on ne bloque JAMAIS la réponse HTTP avec l'envoi d'email.
+         *
+         * defer() exécute ce code APRÈS que la réponse ait été envoyée au
+         * frontend. Ainsi, même si le serveur SMTP est lent, injoignable ou
+         * mal configuré, l'inscription reste rapide pour l'utilisateur.
+         * L'erreur éventuelle est tout de même loguée pour debug.
+         */
+        defer(function () use ($user) {
+            try {
+                $user->sendEmailVerificationNotification();
+            } catch (\Throwable $e) {
+                \Log::error('Erreur envoi email de vérification', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
         return response()->json([
-            'errors' => $validator->errors()
-        ], 422);
+            'message' => 'Inscription réussie. Un email de vérification vous a été envoyé.',
+            'token' => $token,
+            'user' => $user,
+            'email_verification_required' => true,
+        ], 201);
     }
 
-    $user = User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-    ]);
-
-    /*
-     * Créer le token Sanctum.
-     *
-     * Le frontend utilisera ce token pour
-     * les futures requêtes API.
+    /**
+     * Renvoyer l'email de vérification (utilisateur déjà connecté
+     * mais pas encore vérifié).
      */
-    $token = $user->createToken('griot-ai')->plainTextToken;
+    public function resendVerification(Request $request)
+    {
+        $user = $request->user();
 
-    /*
-     * On essaie d'envoyer le mail de vérification.
-     *
-     * Si le serveur SMTP est momentanément indisponible,
-     * l'inscription ne doit pas être annulée.
-     */
-    try {
-        $user->sendEmailVerificationNotification();
-    } catch (\Throwable $e) {
-        \Log::error('Erreur envoi email de vérification', [
-            'user_id' => $user->id,
-            'email' => $user->email,
-            'error' => $e->getMessage(),
+        if (!$user) {
+            return response()->json(['message' => 'Non authentifié.'], 401);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Cette adresse email est déjà vérifiée.',
+            ]);
+        }
+
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            \Log::error('Erreur renvoi email de vérification', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => "Impossible d'envoyer l'email pour le moment. Réessayez dans quelques instants.",
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Email de vérification renvoyé.',
         ]);
     }
 
-    return response()->json([
-        'message' => 'Inscription réussie. Un email de vérification vous a été envoyé.',
-        'token' => $token,
-        'user' => $user,
-        'email_verification_required' => true,
-    ], 201);
-}
+    /**
+     * Demande de réinitialisation de mot de passe.
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        /*
+         * On déferre aussi l'envoi ici pour ne jamais faire attendre
+         * l'utilisateur à cause d'un serveur mail lent.
+         */
+        defer(function () use ($request) {
+            try {
+                Password::sendResetLink($request->only('email'));
+            } catch (\Throwable $e) {
+                \Log::error('Erreur envoi email de réinitialisation', [
+                    'email' => $request->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
+        // Réponse volontairement générique (ne révèle pas si l'email existe).
+        return response()->json([
+            'message' => 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.',
+        ]);
+    }
+
+    /**
+     * Réinitialisation effective du mot de passe.
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                ])->save();
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'Ce lien de réinitialisation est invalide ou a expiré.',
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Mot de passe réinitialisé avec succès.',
+        ]);
+    }
 
     /**
      * Connexion classique
@@ -142,9 +239,24 @@ public function register(Request $request)
 
     /**
      * Callback Google
+     *
+     * IMPORTANT : ce flux est totalement indépendant du formulaire
+     * d'inscription classique. Il ne lit ni n'écrit aucun champ du
+     * formulaire, il crée/retrouve le compte uniquement à partir des
+     * informations renvoyées par Google.
+     *
+     * Il renvoie désormais un vrai token Sanctum (comme login/register)
+     * au lieu de s'appuyer sur une session/cookie Laravel. C'est ce qui
+     * garantit que ça fonctionne pour tout le monde, en local comme en
+     * production : le frontend fonctionne entièrement par token Bearer
+     * stocké en localStorage (voir lib/axios.ts), pas par cookie de
+     * session. Une session cross-domain est fragile en production
+     * (SameSite, domaines différents front/back) ; un token ne l'est pas.
      */
     public function handleGoogleCallback(Request $request)
     {
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+
         // Vérifier le state OAuth
         $state = $request->query('state');
         $sessionState = session('google_oauth_state');
@@ -152,25 +264,19 @@ public function register(Request $request)
         session()->forget('google_oauth_state');
 
         if (!$state || !$sessionState || !hash_equals($sessionState, $state)) {
-            return response()->json([
-                'message' => 'État OAuth invalide.'
-            ], 419);
+            return redirect($frontendUrl . '/auth/login?error=oauth_state');
         }
 
         // Si Google retourne une erreur
         if ($request->filled('error')) {
-            return response()->json([
-                'message' => 'Connexion Google annulée.'
-            ], 400);
+            return redirect($frontendUrl . '/auth/login?error=oauth_cancelled');
         }
 
         // Récupérer le code envoyé par Google
         $code = $request->query('code');
 
         if (!$code) {
-            return response()->json([
-                'message' => 'Code Google manquant.'
-            ], 400);
+            return redirect($frontendUrl . '/auth/login?error=oauth_missing_code');
         }
 
         // Échanger le code contre un access token
@@ -186,17 +292,13 @@ public function register(Request $request)
         );
 
         if (!$tokenResponse->successful()) {
-            return response()->json([
-                'message' => 'Impossible de valider la connexion Google.'
-            ], 401);
+            return redirect($frontendUrl . '/auth/login?error=oauth_token');
         }
 
         $accessToken = $tokenResponse->json('access_token');
 
         if (!$accessToken) {
-            return response()->json([
-                'message' => 'Token Google manquant.'
-            ], 401);
+            return redirect($frontendUrl . '/auth/login?error=oauth_token');
         }
 
         // Récupérer les informations du compte Google
@@ -204,9 +306,7 @@ public function register(Request $request)
             ->get('https://openidconnect.googleapis.com/v1/userinfo');
 
         if (!$googleUserResponse->successful()) {
-            return response()->json([
-                'message' => 'Impossible de récupérer les informations Google.'
-            ], 401);
+            return redirect($frontendUrl . '/auth/login?error=oauth_userinfo');
         }
 
         $googleUser = $googleUserResponse->json();
@@ -215,64 +315,32 @@ public function register(Request $request)
         $name = $googleUser['name'] ?? 'Utilisateur Google';
 
         if (!$email || !($googleUser['email_verified'] ?? false)) {
-            return response()->json([
-                'message' => 'Adresse email Google non vérifiée.'
-            ], 403);
+            return redirect($frontendUrl . '/auth/login?error=oauth_email_not_verified');
         }
 
-        // Chercher l'utilisateur dans notre base
+        // Chercher l'utilisateur dans notre base, ou le créer.
         $user = User::where('email', $email)->first();
 
-        // Créer le compte s'il n'existe pas
         if (!$user) {
             $user = User::create([
                 'name' => $name,
                 'email' => $email,
                 'password' => Hash::make(Str::random(64)),
             ]);
+        }
 
+        // Un compte connecté via Google est considéré comme vérifié.
+        if (!$user->email_verified_at) {
             $user->forceFill([
                 'email_verified_at' => now(),
             ])->save();
-        } else {
-            // Marquer l'email comme vérifié
-            if (!$user->email_verified_at) {
-                $user->forceFill([
-                    'email_verified_at' => now(),
-                ])->save();
-            }
         }
 
-        // Pour le moment, on garde cette partie Google inchangée.
-        Auth::login($user);
+        // Génère un token Sanctum comme pour login/register classique.
+        $token = $user->createToken('griot-ai')->plainTextToken;
 
-        $request->session()->regenerate();
-
-        // Déterminer la redirection selon le rôle et le statut d'abonnement
-        $frontendUrl = config(
-            'app.frontend_url',
-            'http://localhost:3000'
+        return redirect(
+            $frontendUrl . '/auth/social-callback?token=' . urlencode($token)
         );
-
-        if ($user->isAdmin()) {
-            return redirect($frontendUrl . '/dashboard');
-        }
-
-        $souscription = $user->souscriptionActive();
-
-        if ($souscription) {
-            return redirect($frontendUrl . '/dashboard');
-        }
-
-        $derniereSouscription = $user->souscriptions()->latest()->first();
-
-        if (
-            $derniereSouscription &&
-            $derniereSouscription->statut === 'en_attente'
-        ) {
-            return redirect($frontendUrl . '/auth/attente');
-        }
-
-        return redirect($frontendUrl . '/auth/abonnement');
     }
 }

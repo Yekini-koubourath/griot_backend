@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -88,6 +89,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function factures(): HasMany
     {
         return $this->hasMany(Facture::class);
+    }
+
+    /**
+     * Envoie l'email de réinitialisation de mot de passe en pointant
+     * vers la page frontend (Next.js) plutôt que vers une route backend.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     protected function casts(): array

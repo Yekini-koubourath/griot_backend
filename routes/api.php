@@ -47,6 +47,10 @@ Route::get('/debug-session', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Mot de passe oublié (nouveau)
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -109,6 +113,8 @@ Route::post(
 
 Route::get('/analytics', [AnalyticsController::class, 'index']);
 
+    // Vérification email : renvoyer l'email (nouveau)
+    Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
     // Settings
     Route::get('/settings/profile', [SettingsController::class, 'profile']);
@@ -311,8 +317,5 @@ Route::middleware(['auth:sanctum', 'admin'])
             '/users/{user}',
             [AdminUserController::class, 'destroy']
         );
-
-
-    
         
     });

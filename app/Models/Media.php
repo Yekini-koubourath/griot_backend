@@ -36,7 +36,7 @@ class Media extends Model
             MediaFolder::class,
             'folder_id'
         );
-    }
+    } 
 
     /**
      * Publications utilisant ce média.
