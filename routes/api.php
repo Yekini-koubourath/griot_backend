@@ -18,6 +18,7 @@ use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\FacturesController;
+use App\Http\Controllers\AiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -224,10 +225,17 @@ Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
     Route::post('/campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate']);
     Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
     Route::post('/campaigns/{campaign}/resume', [CampaignController::class, 'resume']);
+  
 });
 });
 
+  /*
+|--------------------------------------------------------------------------
+| Intelligence artificielle
+|--------------------------------------------------------------------------
+*/
 
+Route::post('/ai/test', [AiController::class, 'test']);
 /*
 |--------------------------------------------------------------------------
 | Administration
@@ -328,4 +336,5 @@ Route::middleware(['auth:sanctum', 'admin'])
 
     
         
+
     });
