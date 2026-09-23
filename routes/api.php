@@ -236,6 +236,7 @@ Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
 */
 
 Route::post('/ai/test', [AiController::class, 'test']);
+Route::post('/ai/image', [AiController::class, 'image']);
 /*
 |--------------------------------------------------------------------------
 | Administration
