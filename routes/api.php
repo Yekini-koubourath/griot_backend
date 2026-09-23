@@ -46,6 +46,7 @@ Route::get('/debug-session-raw', function (Request $request) {
         'user_id' => auth()->id(),
     ]);
 });
+
 /*
 |--------------------------------------------------------------------------
 | Authentification publique
@@ -55,7 +56,7 @@ Route::get('/debug-session-raw', function (Request $request) {
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// Mot de passe oublié (nouveau)
+// Mot de passe oublié
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
@@ -89,39 +90,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('publications', PublicationController::class);
 
-     Route::get(
-    '/medias',
-    [MediaController::class, 'index']
-);
+    Route::get('/medias', [MediaController::class, 'index']);
+    Route::post('/medias', [MediaController::class, 'store']);
+    Route::get('/medias/{media}/download', [MediaController::class, 'download']);
+    Route::delete('/medias/{media}', [MediaController::class, 'destroy']);
 
-Route::post(
-    '/medias',
-    [MediaController::class, 'store']
-);
+    Route::get('/media-folders', [MediaFolderController::class, 'index']);
+    Route::post('/media-folders', [MediaFolderController::class, 'store']);
 
-Route::get(
-    '/medias/{media}/download',
-    [MediaController::class, 'download']
-);
+    Route::get('/analytics', [AnalyticsController::class, 'index']);
 
-Route::delete(
-    '/medias/{media}',
-    [MediaController::class, 'destroy']
-);
-
-Route::get(
-    '/media-folders',
-    [MediaFolderController::class, 'index']
-);
-
-Route::post(
-    '/media-folders',
-    [MediaFolderController::class, 'store']
-);
-
-Route::get('/analytics', [AnalyticsController::class, 'index']);
-
-    // Vérification email : renvoyer l'email (nouveau)
+    // Vérification email : renvoyer l'email
     Route::post('/email/resend', [AuthController::class, 'resendVerification']);
 
     // Settings
@@ -138,6 +117,19 @@ Route::get('/analytics', [AnalyticsController::class, 'index']);
 
     Route::post('/logout', [SettingsController::class, 'logout']);
     Route::get('/factures', [FacturesController::class, 'index']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Intelligence artificielle
+    |--------------------------------------------------------------------------
+    |
+    | IMPORTANT : ces routes étaient auparavant en dehors de tout groupe
+    | auth:sanctum, donc accessibles sans être connecté — n'importe qui
+    | pouvait consommer votre quota Gemini. Elles sont maintenant protégées.
+    */
+    Route::post('/ai/test', [AiController::class, 'test']);
+    Route::post('/ai/generate-publication', [AiController::class, 'generatePublication']);
+    Route::post('/ai/image', [AiController::class, 'image']);
 });
 
 
@@ -154,48 +146,13 @@ Route::get('/analytics', [AnalyticsController::class, 'index']);
 
 Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
 
-    // Liste des projets
-    Route::get(
-        '/projects',
-        [ProjectController::class, 'index']
-    );
-
-    // Création d'un projet
-    Route::post(
-        '/projects',
-        [ProjectController::class, 'store']
-    );
-
-    // Voir un projet
-    Route::get(
-        '/projects/{project}',
-        [ProjectController::class, 'show']
-    );
-
-    // Modifier un projet
-    Route::put(
-        '/projects/{project}',
-        [ProjectController::class, 'update']
-    );
-
-    // Archiver un projet
-    Route::put(
-        '/projects/{project}/archive',
-        [ProjectController::class, 'archive']
-    );
-
-    // Restaurer un projet archivé
-    Route::put(
-        '/projects/{project}/restore',
-        [ProjectController::class, 'restore']
-    );
-
-    // Supprimer un projet
-    Route::delete(
-        '/projects/{project}',
-        [ProjectController::class, 'destroy']
-    );
-
+    Route::get('/projects', [ProjectController::class, 'index']);
+    Route::post('/projects', [ProjectController::class, 'store']);
+    Route::get('/projects/{project}', [ProjectController::class, 'show']);
+    Route::put('/projects/{project}', [ProjectController::class, 'update']);
+    Route::put('/projects/{project}/archive', [ProjectController::class, 'archive']);
+    Route::put('/projects/{project}/restore', [ProjectController::class, 'restore']);
+    Route::delete('/projects/{project}', [ProjectController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
@@ -213,30 +170,21 @@ Route::middleware(['auth:sanctum', 'subscribed'])->group(function () {
         [CompteSocialController::class, 'destroy']
     );
 
+    Route::middleware('auth')->group(function () {
+        Route::get('/campaigns', [CampaignController::class, 'index']);
+        Route::post('/campaigns', [CampaignController::class, 'store']);
+        Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
+        Route::put('/campaigns/{campaign}', [CampaignController::class, 'update']);
+        Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update']);
+        Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
 
-        Route::middleware('auth')->group(function () {
-    Route::get('/campaigns', [CampaignController::class, 'index']);
-    Route::post('/campaigns', [CampaignController::class, 'store']);
-    Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
-    Route::put('/campaigns/{campaign}', [CampaignController::class, 'update']);
-    Route::patch('/campaigns/{campaign}', [CampaignController::class, 'update']);
-    Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
-
-    Route::post('/campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate']);
-    Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
-    Route::post('/campaigns/{campaign}/resume', [CampaignController::class, 'resume']);
-  
-});
+        Route::post('/campaigns/{campaign}/duplicate', [CampaignController::class, 'duplicate']);
+        Route::post('/campaigns/{campaign}/pause', [CampaignController::class, 'pause']);
+        Route::post('/campaigns/{campaign}/resume', [CampaignController::class, 'resume']);
+    });
 });
 
-  /*
-|--------------------------------------------------------------------------
-| Intelligence artificielle
-|--------------------------------------------------------------------------
-*/
 
-Route::post('/ai/test', [AiController::class, 'test']);
-Route::post('/ai/image', [AiController::class, 'image']);
 /*
 |--------------------------------------------------------------------------
 | Administration
@@ -252,90 +200,18 @@ Route::middleware(['auth:sanctum', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
-        /*
-        |--------------------------------------------------------------------------
-        | Dashboard admin
-        |--------------------------------------------------------------------------
-        */
+        Route::get('/stats', [AdminController::class, 'stats']);
 
-        Route::get(
-            '/stats',
-            [AdminController::class, 'stats']
-        );
+        Route::get('/plans', [AdminPlanController::class, 'index']);
+        Route::post('/plans', [AdminPlanController::class, 'store']);
+        Route::put('/plans/{plan}', [AdminPlanController::class, 'update']);
+        Route::delete('/plans/{plan}', [AdminPlanController::class, 'destroy']);
 
+        Route::get('/souscriptions', [AdminSouscriptionController::class, 'index']);
+        Route::post('/souscriptions/{souscription}/valider', [AdminSouscriptionController::class, 'valider']);
+        Route::post('/souscriptions/{souscription}/rejeter', [AdminSouscriptionController::class, 'rejeter']);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Plans admin
-        |--------------------------------------------------------------------------
-        */
-
-        Route::get(
-            '/plans',
-            [AdminPlanController::class, 'index']
-        );
-
-        Route::post(
-            '/plans',
-            [AdminPlanController::class, 'store']
-        );
-
-        Route::put(
-            '/plans/{plan}',
-            [AdminPlanController::class, 'update']
-        );
-
-        Route::delete(
-            '/plans/{plan}',
-            [AdminPlanController::class, 'destroy']
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Souscriptions admin
-        |--------------------------------------------------------------------------
-        */
-
-        Route::get(
-            '/souscriptions',
-            [AdminSouscriptionController::class, 'index']
-        );
-
-        Route::post(
-            '/souscriptions/{souscription}/valider',
-            [AdminSouscriptionController::class, 'valider']
-        );
-
-        Route::post(
-            '/souscriptions/{souscription}/rejeter',
-            [AdminSouscriptionController::class, 'rejeter']
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Utilisateurs admin
-        |--------------------------------------------------------------------------
-        */
-
-        Route::get(
-            '/users',
-            [AdminUserController::class, 'index']
-        );
-
-        Route::put(
-            '/users/{user}',
-            [AdminUserController::class, 'update']
-        );
-
-        Route::delete(
-            '/users/{user}',
-            [AdminUserController::class, 'destroy']
-        );
-
-
-    
-        
-
+        Route::get('/users', [AdminUserController::class, 'index']);
+        Route::put('/users/{user}', [AdminUserController::class, 'update']);
+        Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
     });
