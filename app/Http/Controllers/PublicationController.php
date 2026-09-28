@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Publication;
 use Illuminate\Http\Request;
+use App\Services\FacebookPublisher;
 
 class PublicationController extends Controller
 {
@@ -167,62 +168,55 @@ public function index(Request $request)
             }
         }
 
-        $publications = [];
+   $publications = [];
+$errors = [];
 
-        foreach ($validated['networks'] as $network) {
-            $publication = $request
-                ->user()
-                ->publications()
-                ->create([
-                    'project_id' =>
-                        $validated['project_id']
-                        ?? null,
+foreach ($validated['networks'] as $network) {
+    $publication = $request->user()->publications()->create([
+        'project_id' => $validated['project_id'] ?? null,
+        'title'      => $validated['title'],
+        'content'    => $validated['content'],
+        'network'    => $network,
+        'status'     => $validated['status'],
+        'date'       => $validated['date'] ?? null,
+        'time'       => $validated['time'] ?? null,
+        'image'      => $validated['image'] ?? null,
+    ]);
 
-                    'title' =>
-                        $validated['title'],
+    if (!empty($mediaIds)) {
+        $publication->medias()->sync($mediaIds);
+    }
 
-                    'content' =>
-                        $validated['content'],
+    $publication->load(['project', 'medias']);
 
-                    'network' =>
-                        $network,
-
-                    'status' =>
-                        $validated['status'],
-
-                    'date' =>
-                        $validated['date']
-                        ?? null,
-
-                    'time' =>
-                        $validated['time']
-                        ?? null,
-
-                    'image' =>
-                        $validated['image']
-                        ?? null,
-                ]);
-
-            if (!empty($mediaIds)) {
-                $publication
-                    ->medias()
-                    ->sync($mediaIds);
+    // Publication immédiate
+    if ($validated['status'] === 'Publiée') {
+        try {
+            if ($network !== 'Facebook') {
+                throw new \RuntimeException("La publication sur {$network} n'est pas encore disponible.");
             }
 
-            $publications[] = $publication
-                ->load([
-                    'project',
-                    'medias',
-                ]);
+            app(FacebookPublisher::class)->publish($publication);
+        } catch (\Throwable $e) {
+            $publication->update(['status' => 'Échec']);
+            $errors[] = $e->getMessage();
         }
+    }
 
-        return response()->json([
-            'message' =>
-                'Publication(s) créée(s) avec succès.',
+    $publications[] = $publication->fresh(['project', 'medias']);
+}
 
-            'publications' =>
-                $publications,
-        ], 201);
+if (!empty($errors)) {
+    return response()->json([
+        'message' => implode(' ', $errors),
+        'publications' => $publications,
+    ], 422);
+}
+
+return response()->json([
+    'message' => 'Publication(s) créée(s) avec succès.',
+    'publications' => $publications,
+], 201);
     }
 
     /**
