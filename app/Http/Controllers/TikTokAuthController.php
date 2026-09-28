@@ -106,7 +106,7 @@ class TikTokAuthController extends Controller
             'client_key' => config('services.tiktok.client_id'),
             'redirect_uri' => config('services.tiktok.redirect'),
             'response_type' => 'code',
-            'scope' => 'user.info.basic,video.publish,video.upload',
+            'scope' => 'user.info.basic',
             'state' => $state,
 
             // PKCE
@@ -121,6 +121,17 @@ class TikTokAuthController extends Controller
 
     public function callback(Request $request)
     {
+        \Log::info('TIKTOK CALLBACK DEBUG', [
+    'url' => $request->fullUrl(),
+    'has_code' => $request->has('code'),
+    'has_state' => $request->has('state'),
+    'has_error' => $request->has('error'),
+    'error' => $request->query('error'),
+    'error_description' => $request->query('error_description'),
+    'session_state' => session('tiktok_oauth_state'),
+    'session_project_id' => session('tiktok_oauth_project_id'),
+    'session_verifier_present' => session()->has('tiktok_oauth_code_verifier'),
+]);
         $frontendUrl = config(
             'app.frontend_url',
             'http://localhost:3000'

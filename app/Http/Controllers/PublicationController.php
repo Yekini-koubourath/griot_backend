@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Publication;
 use Illuminate\Http\Request;
 use App\Services\FacebookPublisher;
+use App\Services\TikTokPublisher;
 
 class PublicationController extends Controller
 {
@@ -190,18 +191,36 @@ foreach ($validated['networks'] as $network) {
     $publication->load(['project', 'medias']);
 
     // Publication immédiate
-    if ($validated['status'] === 'Publiée') {
-        try {
-            if ($network !== 'Facebook') {
-                throw new \RuntimeException("La publication sur {$network} n'est pas encore disponible.");
-            }
-
-            app(FacebookPublisher::class)->publish($publication);
-        } catch (\Throwable $e) {
-            $publication->update(['status' => 'Échec']);
-            $errors[] = $e->getMessage();
+   if ($validated['status'] === 'Publiée') {
+    try {
+        if ($network === 'Facebook') {
+            app(FacebookPublisher::class)
+                ->publish($publication);
+        } elseif ($network === 'TikTok') {
+            app(TikTokPublisher::class)
+                ->publish($publication);
+        } else {
+            throw new \RuntimeException(
+                "La publication sur {$network} n'est pas encore disponible."
+            );
         }
+    } catch (\Throwable $e) {
+        \Log::error(
+            'Erreur publication réseau social',
+            [
+                'network' => $network,
+                'publication_id' => $publication->id,
+                'error' => $e->getMessage(),
+            ]
+        );
+
+        $publication->update([
+            'status' => 'Échec',
+        ]);
+
+        $errors[] = $e->getMessage();
     }
+}
 
     $publications[] = $publication->fresh(['project', 'medias']);
 }
