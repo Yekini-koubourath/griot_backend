@@ -71,30 +71,14 @@ class TikTokAuthController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | PKCE
-        |--------------------------------------------------------------------------
-        |
-        | TikTok demande un code_verifier + code_challenge
-        | pour le flux Desktop.
-        |
-        */
-
-        $codeVerifier = Str::random(64);
-
-        // TikTok demande SHA-256 en encodage hexadécimal
-        $codeChallenge = hash('sha256', $codeVerifier);
-
-        /*
-        |--------------------------------------------------------------------------
         | Stockage en session
         |--------------------------------------------------------------------------
         */
 
-        session([
-            'tiktok_oauth_state' => $state,
-            'tiktok_oauth_project_id' => $project->id,
-            'tiktok_oauth_code_verifier' => $codeVerifier,
-        ]);
+       session([
+    'tiktok_oauth_state' => $state,
+    'tiktok_oauth_project_id' => $project->id,
+]);
 
         /*
         |--------------------------------------------------------------------------
@@ -102,17 +86,17 @@ class TikTokAuthController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $params = http_build_query([
-            'client_key' => config('services.tiktok.client_id'),
-            'redirect_uri' => config('services.tiktok.redirect'),
-            'response_type' => 'code',
-            'scope' => 'user.info.basic',
-            'state' => $state,
+      $params = http_build_query([
+    'client_key' => config('services.tiktok.client_id'),
+    'redirect_uri' => config('services.tiktok.redirect'),
+    'response_type' => 'code',
+    'scope' => 'user.info.basic',
+    'state' => $state,
+]);
 
-            // PKCE
-            'code_challenge' => $codeChallenge,
-            'code_challenge_method' => 'S256',
-        ]);
+\Log::info('TIKTOK AUTH URL', [
+    'url' => 'https://www.tiktok.com/v2/auth/authorize/?' . $params,
+]);
 
         return redirect(
             'https://www.tiktok.com/v2/auth/authorize/?' . $params
@@ -149,19 +133,16 @@ class TikTokAuthController extends Controller
 
         $projectId = session('tiktok_oauth_project_id');
 
-        $codeVerifier = session('tiktok_oauth_code_verifier');
-
         /*
         |--------------------------------------------------------------------------
         | Nettoyage de la session OAuth
         |--------------------------------------------------------------------------
         */
 
-        session()->forget([
-            'tiktok_oauth_state',
-            'tiktok_oauth_project_id',
-            'tiktok_oauth_code_verifier',
-        ]);
+      session()->forget([
+    'tiktok_oauth_state',
+    'tiktok_oauth_project_id',
+]);
 
         /*
         |--------------------------------------------------------------------------
@@ -199,11 +180,11 @@ class TikTokAuthController extends Controller
 
         $code = $request->query('code');
 
-        if (!$code || !$projectId || !$codeVerifier) {
-            return redirect(
-                $frontendUrl . '/dashboard/reseaux_sociaux?erreur=code_manquant'
-            );
-        }
+      if (!$code || !$projectId) {
+    return redirect(
+        $frontendUrl . '/dashboard/reseaux_sociaux?erreur=code_manquant'
+    );
+}
 
         /*
         |--------------------------------------------------------------------------
@@ -225,22 +206,19 @@ class TikTokAuthController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $tokenResponse = Http::asForm()->post(
-            'https://open.tiktokapis.com/v2/oauth/token/',
-            [
-                'client_key' => config('services.tiktok.client_id'),
-                'client_secret' => config('services.tiktok.client_secret'),
+      $tokenResponse = Http::asForm()->post(
+    'https://open.tiktokapis.com/v2/oauth/token/',
+    [
+        'client_key' => config('services.tiktok.client_id'),
+        'client_secret' => config('services.tiktok.client_secret'),
 
-                'code' => $code,
+        'code' => $code,
 
-                'grant_type' => 'authorization_code',
+        'grant_type' => 'authorization_code',
 
-                'redirect_uri' => config('services.tiktok.redirect'),
-
-                // PKCE
-                'code_verifier' => $codeVerifier,
-            ]
-        );
+        'redirect_uri' => config('services.tiktok.redirect'),
+    ]
+);
 
         /*
         |--------------------------------------------------------------------------
