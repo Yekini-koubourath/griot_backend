@@ -6,6 +6,8 @@ use App\Models\Publication;
 use Illuminate\Http\Request;
 use App\Services\FacebookPublisher;
 use App\Services\TikTokPublisher;
+use App\Services\InstagramPublisher;
+
 
 class PublicationController extends Controller
 {
@@ -194,16 +196,20 @@ foreach ($validated['networks'] as $network) {
    if ($validated['status'] === 'Publiée') {
     try {
         if ($network === 'Facebook') {
-            app(FacebookPublisher::class)
-                ->publish($publication);
-        } elseif ($network === 'TikTok') {
-            app(TikTokPublisher::class)
-                ->publish($publication);
-        } else {
-            throw new \RuntimeException(
-                "La publication sur {$network} n'est pas encore disponible."
-            );
-        }
+    app(FacebookPublisher::class)
+        ->publish($publication);
+} elseif ($network === 'TikTok') {
+    app(TikTokPublisher::class)
+        ->publish($publication);
+} elseif ($network === 'Instagram') {
+    app(InstagramPublisher::class)
+        ->publish($publication);
+} else {
+    throw new \RuntimeException(
+        "La publication sur {$network} n'est pas encore disponible."
+    );
+}
+    
     } catch (\Throwable $e) {
         \Log::error(
             'Erreur publication réseau social',

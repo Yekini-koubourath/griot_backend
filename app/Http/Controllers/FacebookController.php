@@ -133,22 +133,18 @@ class FacebookController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $query = http_build_query([
-            'client_id' => config('services.facebook.client_id'),
+       $query = http_build_query([
+    'client_id' => config('services.facebook.client_id'),
 
-            'redirect_uri' =>
-                config('services.facebook.redirect_uri'),
+    'redirect_uri' =>
+        config('services.facebook.redirect_uri'),
 
-            'state' => $state,
+    'state' => $state,
 
-            'scope' => implode(',', [
-                'pages_show_list',
-                'pages_read_engagement',
-                'pages_manage_posts',
-            ]),
+    'config_id' => '1514995783728316',
 
-            'response_type' => 'code',
-        ]);
+    'response_type' => 'code',
+]);
 
         return redirect(
             'https://www.facebook.com/v24.0/dialog/oauth?'
@@ -524,6 +520,83 @@ class FacebookController extends Controller
                         'actif',
                 ]
             );
+
+            /*
+|--------------------------------------------------------------------------
+| Récupération du compte Instagram lié à la Page
+|--------------------------------------------------------------------------
+*/
+
+try {
+    $igLinkResponse = Http::get(
+        "https://graph.facebook.com/v24.0/{$pageId}",
+        [
+            'fields' => 'instagram_business_account',
+            'access_token' => $pageAccessToken,
+        ]
+    );
+
+    $igAccountId = $igLinkResponse->json('instagram_business_account.id');
+
+    if ($igAccountId) {
+        $igDetails = Http::get(
+            "https://graph.facebook.com/v24.0/{$igAccountId}",
+            [
+                'fields' => 'username,profile_picture_url,name',
+                'access_token' => $pageAccessToken,
+            ]
+        )->json();
+
+        CompteSocial::updateOrCreate(
+            [
+                'project_id' => $project->id,
+                'reseau' => 'instagram',
+                'compte_id' => $igAccountId,
+            ],
+            [
+                'user_id' => $project->user_id,
+
+                'nom_affichage' =>
+                    $igDetails['name']
+                    ?? $igDetails['username']
+                    ?? 'Compte Instagram',
+
+                'nom_utilisateur' =>
+                    isset($igDetails['username'])
+                        ? '@' . $igDetails['username']
+                        : null,
+
+                'avatar_url' =>
+                    $igDetails['profile_picture_url'] ?? null,
+
+                'access_token' => $pageAccessToken,
+
+                'refresh_token' => null,
+
+                'token_expires_at' => null,
+
+                'meta' => [
+                    'type' => 'instagram_business_account',
+                    'linked_page_id' => $pageId,
+                    'scopes' => [
+                        'instagram_basic',
+                        'instagram_content_publish',
+                    ],
+                ],
+
+                'statut' => 'actif',
+            ]
+        );
+    } else {
+        \Log::info('Aucun compte Instagram lié à la Page', [
+            'page_id' => $pageId,
+        ]);
+    }
+} catch (\Throwable $e) {
+    \Log::warning('Récupération Instagram échouée', [
+        'message' => $e->getMessage(),
+    ]);
+}
 
             /*
             |--------------------------------------------------------------------------
